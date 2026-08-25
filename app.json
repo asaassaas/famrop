@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "DOT",
+    "scheme": "famrop",
+    "platforms": ["ios", "android"],
+    "slug": "famrop-qmms-zhbxkd6jagg6ijox",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.prince_of_nigeria.famropqmmszhbxkd6jagg6ijox",
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "INTERNET"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "20b707ff-8de6-4128-8aeb-220231280be4"
+      }
+    },
+    "owner": "prince_of_nigeria",
+    "plugins": [
+      "expo-status-bar",
+      "expo-web-browser"
+    ]
+     
+  
+  
+  }
+}
