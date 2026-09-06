@@ -12,12 +12,16 @@ buildscript {
   }
 }
 
-   allprojects {
-       repositories {
-           // ... другие репозитории
-           maven { url "https://maven.mytarget.com/" } // <-- Должен быть этот
-       }
-   }
+allprojects {
+    repositories {
+        maven { url "https://dl.bintray.com/mytarget/maven" }
+    }
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"

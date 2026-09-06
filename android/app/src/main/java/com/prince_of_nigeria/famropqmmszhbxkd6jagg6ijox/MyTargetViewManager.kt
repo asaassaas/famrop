@@ -13,10 +13,7 @@ class MyTargetViewManager : SimpleViewManager<MyTargetView>() {
 
     override fun createViewInstance(reactContext: ThemedReactContext): MyTargetView {
         return MyTargetView(reactContext).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
     }
 
