@@ -23,14 +23,14 @@ class MyTargetViewManager : SimpleViewManager<MyTargetView>() {
     }
 
     @ReactProp(name = "adSize")
-    fun setAdSize(view: MyTargetView, adSize: String?) {
-        when (adSize) {
-            "320x50" -> view.setAdSize(AdSize.ADSIZE_320x50)
-            "300x250" -> view.setAdSize(AdSize.ADSIZE_300x250)
-            "728x90" -> view.setAdSize(AdSize.ADSIZE_728x90)
-            else -> view.setAdSize(AdSize.ADSIZE_ADAPTIVE)
-        }
+fun setAdSize(view: MyTargetView, adSize: String?) {
+    when (adSize) {
+        "320x50" -> view.setAdSize(AdSize.ADSIZE_320x50)
+        "300x250" -> view.setAdSize(AdSize.ADSIZE_300x250)
+        "728x90" -> view.setAdSize(AdSize.ADSIZE_728x90)
+        else -> view.setAdSize(AdSize.ADSIZE_320x50) // fallback на стандартный размер
     }
+}
 
     override fun onDropViewInstance(view: MyTargetView) {
         view.destroy()
