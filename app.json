@@ -2,28 +2,29 @@
   "expo": {
     "name": "DOT",
     "scheme": "famrop",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "slug": "famrop-qmms-zhbxkd6jagg6ijox",
-    "version": "1.0.0",
+    "version": "3.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
-
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
+      "versionCode": 3,
       "package": "com.prince_of_nigeria.famropqmmszhbxkd6jagg6ijox",
       "config": {
         "googleMaps": {
@@ -48,10 +49,10 @@
     "owner": "prince_of_nigeria",
     "plugins": [
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      "./plugins/withMyTarget",
+      "expo-font"
     ]
-     
-  
-  
   }
 }

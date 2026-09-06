@@ -36,19 +36,13 @@ import { decode } from 'base64-arraybuffer';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import MyTargetBanner from './components/MyTargetBanner';
 
 // Конфигурация Supabase
 const SUPABASE_URL = 'https://vlwgahvtckoipmbuekjd.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2dhaHZ0Y2tvaXBtYnVla2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzODQ5ODcsImV4cCI6MjA4NTk2MDk4N30.f_KIo-t5oH2Fv7fwJRE0jmlLT0KClaOzbahVi1wNHSs';
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsd2dhaHZ0Y2tvaXBtYnVla2pkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDM4NDk4NywiZXhwIjoyMDg1OTYwOTg3fQ.tpowbTU-Y-c4CCWcHgO-6IxhRqgOo-tBP_STM_cM7yM';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const { width, height } = Dimensions.get('window');
 
@@ -2668,7 +2662,7 @@ const handleYandexToken = async (accessToken) => {
     });
     
     if (!userInfoResponse.ok) {
-      throw new Error(`Ошибка: ${userInfoResponse.status}`);
+      throw new Error(`Ошибка API: ${userInfoResponse.status}`);
     }
     
     const userInfo = await userInfoResponse.json();
@@ -2682,41 +2676,54 @@ const handleYandexToken = async (accessToken) => {
     const displayName = userInfo.display_name || userInfo.login || 'Пользователь';
     const login = userInfo.login || displayName;
     
-    // Закрываем браузер
-    try {
-      await WebBrowser.dismissBrowser();
-      console.log('✅ Браузер закрыт');
-    } catch (e) {
-      console.log('Ошибка закрытия браузера:', e);
-    }
+    console.log('📧 Email:', email);
     
-    // Вход в Supabase
+    // Пробуем войти
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email: email,
       password: `yandex_${userInfo.id}`
     });
     
     if (signInError && signInError.message.includes('Invalid login credentials')) {
-      console.log('📝 Регистрируем нового пользователя...');
+      console.log('📝 Регистрируем пользователя без подтверждения почты...');
       
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      // ИСПОЛЬЗУЕМ admin API для создания пользователя без подтверждения
+      // Для этого нужен service_role ключ
+      const supabaseAdmin = createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_KEY,
+        {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+      );
+      
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: `yandex_${userInfo.id}`,
-        options: {
-          data: {
-            username: login,
-            full_name: displayName,
-          }
+        email_confirm: true, // ВАЖНО: подтверждаем почту сразу
+        user_metadata: {
+          username: login,
+          full_name: displayName,
         }
       });
       
-      if (signUpError) throw signUpError;
+      if (createError) {
+        console.log('❌ Ошибка создания через admin:', createError);
+        // Если admin не работает - пробуем обычный signUp с autoConfirm
+        throw createError;
+      }
       
-      if (signUpData.user) {
-        await supabase
+      console.log('✅ Пользователь создан через admin:', newUser.user?.id);
+      
+      // Создаем профиль
+      if (newUser.user) {
+        const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
-            id: signUpData.user.id,
+            id: newUser.user.id,
             username: login,
             full_name: displayName,
             rating: 5.0,
@@ -2724,37 +2731,49 @@ const handleYandexToken = async (accessToken) => {
             meetup_count: 0,
             role: 'user'
           }, { onConflict: 'id' });
+        
+        if (profileError) {
+          console.log('⚠️ Ошибка профиля:', profileError);
+        }
       }
       
-      const { data: signInRetryData, error: signInRetryError } = await supabase.auth.signInWithPassword({
+      // Входим
+      const { data: signInRetry, error: signInRetryError } = await supabase.auth.signInWithPassword({
         email: email,
         password: `yandex_${userInfo.id}`
       });
       
       if (signInRetryError) throw signInRetryError;
       
-      if (signInRetryData.user) {
+      if (signInRetry.user) {
+        console.log('✅ Вход выполнен!');
         setIsSignedIn(true);
-        setUser(signInRetryData.user);
-        Alert.alert('✅ Успех!', 'Вы успешно вошли через Яндекс!');
+        setUser(signInRetry.user);
         await loadProfile();
+        Alert.alert('✅ Успех!', 'Вы вошли через Яндекс!');
+        await WebBrowser.dismissBrowser();
       }
+      
     } else if (signInData?.user) {
-      console.log('✅ Пользователь найден');
+      console.log('✅ Вход выполнен!');
       setIsSignedIn(true);
       setUser(signInData.user);
-      Alert.alert('✅ Успех!', 'Вы успешно вошли через Яндекс!');
       await loadProfile();
+      Alert.alert('✅ Успех!', 'Вы вошли через Яндекс!');
+      await WebBrowser.dismissBrowser();
+      
+    } else if (signInError) {
+      throw signInError;
     } else {
       throw new Error('Не удалось выполнить вход');
     }
     
   } catch (error) {
     console.error('❌ Ошибка:', error);
-    Alert.alert('Ошибка', error.message || 'Не удалось обработать авторизацию');
+    Alert.alert('Ошибка', error.message || 'Не удалось войти');
+    setYandexLoading(false);
   } finally {
     setYandexLoading(false);
-    setWaitingForToken(false);
   }
 };
   // Стандартная авторизация (email/пароль)
@@ -3868,6 +3887,10 @@ const handleYandexToken = async (accessToken) => {
       address: 'Москва, центр',
     });
   }
+
+// ===== КОМПОНЕНТ БАННЕРА =====
+
+
 
   // Форматирование даты и времени
   function formatDateTime(isoString) {
@@ -6806,44 +6829,61 @@ const handleYandexToken = async (accessToken) => {
             )}
           </ScrollView>
         )}
+        
       </View>
 
-      {!isChatOpen && (
-        <View style={[styles.bottomNavigation, { marginBottom: Platform.OS === 'android' ? 40 : 0 }]}>
-          <TouchableOpacity 
-            style={[styles.navItem, activeTab === 'events' && styles.navItemActive]}
-            onPress={() => setActiveTab('events')}
-          >
-            <Text style={[styles.navIcon, activeTab === 'events' && styles.navIconActive]}>🔥</Text>
-            <Text style={[styles.navText, activeTab === 'events' && styles.navTextActive]}>События</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.navItem, activeTab === 'groupChats' && styles.navItemActive]}
-            onPress={() => setActiveTab('groupChats')}
-          >
-            <Text style={[styles.navIcon, activeTab === 'groupChats' && styles.navIconActive]}>👥</Text>
-            <Text style={[styles.navText, activeTab === 'groupChats' && styles.navTextActive]}>Чаты</Text>
-            {groupChats.length > 0 && (
-              <View style={styles.navBadge}>
-                <Text style={styles.navBadgeText}>{groupChats.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.navItem, activeTab === 'profile' && styles.navItemActive]}
-            onPress={() => setActiveTab('profile')}
-          >
-            <Text style={[styles.navIcon, activeTab === 'profile' && styles.navIconActive]}>👤</Text>
-            <Text style={[styles.navText, activeTab === 'profile' && styles.navTextActive]}>Профиль</Text>
-          </TouchableOpacity>
+
+
+
+
+
+
+              {!isChatOpen && (
+          <>
+            <View style={[styles.bottomNavigation, { marginBottom: Platform.OS === 'android' ? 40 : 0 }]}>
+              <TouchableOpacity
+                style={[styles.navItem, activeTab === 'events' && styles.navItemActive]}
+                onPress={() => setActiveTab('events')}
+              >
+                <Text style={[styles.navIcon, activeTab === 'events' && styles.navIconActive]}>🔥</Text>
+                <Text style={[styles.navText, activeTab === 'events' && styles.navTextActive]}>События</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.navItem, activeTab === 'groupChats' && styles.navItemActive]}
+                onPress={() => setActiveTab('groupChats')}
+              >
+                <Text style={[styles.navIcon, activeTab === 'groupChats' && styles.navIconActive]}>👥</Text>
+                <Text style={[styles.navText, activeTab === 'groupChats' && styles.navTextActive]}>Чаты</Text>
+                {groupChats.length > 0 && (
+                  <View style={styles.navBadge}>
+                    <Text style={styles.navBadgeText}>{groupChats.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.navItem, activeTab === 'profile' && styles.navItemActive]}
+                onPress={() => setActiveTab('profile')}
+              >
+                <Text style={[styles.navIcon, activeTab === 'profile' && styles.navIconActive]}>👤</Text>
+                <Text style={[styles.navText, activeTab === 'profile' && styles.navTextActive]}>Профиль</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* 👇👇👇 БАННЕР MYTARGET 👇👇👇 */}
+            <View style={styles.adBannerContainer}>
+              <MyTargetBanner 
+                slotId="2061029" 
+                adSize="320x50"
+                style={styles.adBanner}
+              />
+            </View>
+            {/* 👆👆👆 КОНЕЦ БАННЕРА 👆👆👆 */}
+          </>
+        )}
+        <View style={styles.androidNavArea} />
         </View>
-      )}
-      <View style={styles.androidNavArea} />
-    </View>
-  );
-}
+        );
+        }
 
 // Стили
 const styles = StyleSheet.create({
@@ -9802,7 +9842,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  
+  adBannerContainer: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    zIndex: 998,
+  },
+  adBanner: {
+    width: 320,
+    height: 50,
+  },
 });
 
 // Тексты юридических документов
